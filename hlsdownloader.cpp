@@ -397,7 +397,7 @@ void download_and_process_item(fetch_item* item)
 	}
 	else
 	{
-		printf("Not downloading %s as already available \n", item->path);
+		printf("Not downloading url %s as %s since already available \n", url, outfile);
 	}
 	if (is_manifest(url))
 	{
