@@ -30,6 +30,7 @@
 #include <assert.h>
 #include <sys/time.h>
 #include <limits.h>
+#include <list>
 
 
 using namespace std;
@@ -64,6 +65,8 @@ static bool main_list_processed = false;
 
 static int g_maximum_downloads_per_profile = INT_MAX;
 
+static bool g_interactive_download = false;
+
 static size_t curl_write(void *ptr, size_t size, size_t nmemb, FILE *fp)
 {
 	size_t len = fwrite(ptr, size, nmemb, fp);
@@ -87,6 +90,7 @@ void process(const char* file, fetch_item* item, const char* base_url)
 	char * line = NULL;
 	int main_manifest = 0;
 	fetch_item* last_item = NULL;
+	std::list<fetch_item*> manifest_items;
 	pthread_t fetcherThreads[MAX_ASYNC_FETCHES];
 	int fetcher_thread_count = 0;
 	printf("process file %s\n", file);
@@ -104,6 +108,14 @@ void process(const char* file, fetch_item* item, const char* base_url)
 	}
 	while ((read_len = getline(&line, &len, fp)) != -1)
 	{
+		if(main_manifest)
+		{
+			printf("Main manifest: line:%s\n", line);
+		}
+		else
+		{
+			//printf("Playlist: line:%s\n", line);
+		}
 		int i = read_len - 1;
 		for (; i > 0; i--)
 		{
@@ -144,17 +156,24 @@ void process(const char* file, fetch_item* item, const char* base_url)
 				main_manifest = 1;
 			}
 		}
-		if(main_manifest)
-		{
-			printf("Main manifest: line:%s\n", line);
-		}
-		else
-		{
-			//printf("Playlist: line:%s\n", line);
-		}
 		if ('#' != line[0] && (!isspace(line[0])))
 		{
 			int removed_filename = 0;
+
+			if (main_manifest && g_interactive_download)
+			{
+				char buf[124];
+				printf("Download %s ? y/n\n", line);
+				if (fgets(buf, sizeof(buf), stdin))
+				{
+					if (buf[0] != 'y')
+					{
+						printf("Skip %s\n", line);
+						continue;
+					}
+				}
+
+			}
 			fetch_item* item_new = new fetch_item();
 			if ((0 != memcmp(line, "http://", 7)) && (0 != memcmp(line, "https://", 8)))
 			{
@@ -217,15 +236,24 @@ void process(const char* file, fetch_item* item, const char* base_url)
 			}
 			else
 			{
-				async_fetch_idx++;
-				printf("Creating new thread async_fetch_idx = %d\n", async_fetch_idx);
-				assert(async_fetch_idx<MAX_ASYNC_FETCHES);
-				pthread_create(&fetcherThreads[fetcher_thread_count], NULL, &fetcher_thread, item_new);
-				fetcher_thread_count++;
+				manifest_items.push_back(item_new);
 			}
 		}
 	}
 	fclose(fp);
+
+	if (main_manifest)
+	{
+		for (auto it=manifest_items.begin(); it != manifest_items.end(); ++it)
+		{
+			fetch_item* item_new = *it;
+			async_fetch_idx++;
+			printf("Creating new thread for [%s] async_fetch_idx = %d\n", item_new->path,async_fetch_idx);
+			assert(async_fetch_idx<MAX_ASYNC_FETCHES);
+			pthread_create(&fetcherThreads[fetcher_thread_count], NULL, &fetcher_thread, item_new);
+			fetcher_thread_count++;
+		}
+	}
 
 	if (fetcher_thread_count)
 	{
@@ -476,6 +504,23 @@ int main(int argc, char *argv[])
 		else
 		{
 			printf("Error parsing max downloads per profile %s\n", max_downloads);
+		}
+	}
+	{
+		//TODO Move these as command line options
+		const char* interactive_download = getenv("ENABLE_INTERACTIVE_DOWNLOADS");
+		if (interactive_download)
+		{
+			int interactive_download_val;
+			if (1 == sscanf(interactive_download, "%d", &interactive_download_val))
+			{
+				g_interactive_download = (interactive_download_val != 0);
+				printf("interactive download set to %d\n", g_interactive_download);
+			}
+			else
+			{
+				printf("Error parsing interactive download %s\n", interactive_download);
+			}
 		}
 	}
 

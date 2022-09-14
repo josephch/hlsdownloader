@@ -2,7 +2,7 @@
 CC?=gcc
 CXX?=g++
 
-CFLAGS?=  -Wall -Wfatal-errors -g
+CFLAGS?=  -Wall -Wfatal-errors -g -std=c++11
 
 ARFLAGS?=rcs
 
