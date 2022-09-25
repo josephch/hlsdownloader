@@ -77,7 +77,7 @@ void download_and_process_list( fetch_item* list );
 
 static void *fetcher_thread(void* arg)
 {
-	 fetch_item* list =  (fetch_item*) arg;
+	 fetch_item* list =  static_cast<fetch_item*>(arg);
 	 download_and_process_list(list);
 	 return NULL;
 }
@@ -116,13 +116,15 @@ void process(const char* file, fetch_item* item, const char* base_url)
 		{
 			//printf("Playlist: line:%s\n", line);
 		}
-		int i = read_len - 1;
-		for (; i > 0; i--)
 		{
-			if (isspace(line[i]))
-				line[i] = '\0';
-			else
-				break;
+			int i = read_len - 1;
+			for (; i > 0; i--)
+			{
+				if (isspace(line[i]))
+					line[i] = '\0';
+				else
+					break;
+			}
 		}
 		if ('#' == line[0])
 		{
@@ -133,7 +135,7 @@ void process(const char* file, fetch_item* item, const char* base_url)
 				if (uristart)
 				{
 					uristart++;
-					for (i = 0; uristart[i] != '\0'; i++)
+					for (int i = 0; uristart[i] != '\0'; i++)
 					{
 						if (uristart[i] == '"')
 						{
@@ -158,8 +160,6 @@ void process(const char* file, fetch_item* item, const char* base_url)
 		}
 		if ('#' != line[0] && (!isspace(line[0])))
 		{
-			int removed_filename = 0;
-
 			if (main_manifest && g_interactive_download)
 			{
 				char buf[124];
@@ -175,41 +175,13 @@ void process(const char* file, fetch_item* item, const char* base_url)
 
 			}
 			fetch_item* item_new = new fetch_item();
-			if ((0 != memcmp(line, "http://", 7)) && (0 != memcmp(line, "https://", 8)))
-			{
-				strcpy(item_new->path, item->path);
-				int i = strlen(item->path) - 1;
-
-				for (; i > 0; i--)
-				{
-					if (item_new->path[i] == '/')
-					{
-						item_new->path[i] = '\0';
-						removed_filename = 1;
-						break;
-					}
-				}
-				if (!removed_filename)
-				{
-					item_new->path[0] = '\0';
-				}
-				else
-				{
-					strcat(item_new->path, "/");
-				}
-			}
-			else
-			{
-				item_new->path[0] = '\0';
-			}
 			item_new->path[0] = '\0';
 			strcat(item_new->path, line);
 			strcpy(item_new->base_url, base_url);
 			strcpy(item_new->base_directory, item->base_directory);
 			{
-				int i;
-				int len = strlen (item->path);
-				for (i = len-1; i  > 0; i--)
+				int path_len = strlen (item->path);
+				for (int i = path_len-1; i  > 0; i--)
 				{
 					if (item->path[i] == '/')
 					{
@@ -295,8 +267,6 @@ void merge_manifest_files(const char* origfile, const char* outfile)
 
 void download_and_process_item(fetch_item* item)
 {
-	CURL *curl;
-	FILE *fp;
 	CURLcode res;
 	char url[URL_MAX_SIZE];
 	char outfile[OUTPUT_FILE_PATH_SIZE];
@@ -388,13 +358,13 @@ void download_and_process_item(fetch_item* item)
 			}
 		}
 		printf("Downloading url %s as %s\n", url, outfile);
-		fp = fopen(outfile, "wb");
+		FILE *fp = fopen(outfile, "wb");
 		if (NULL == fp)
 		{
 			printf("File open failed. outfile = %s \n", outfile);
 			return;
 		}
-		curl = curl_easy_init();
+		CURL *curl = curl_easy_init();
 		if (curl)
 		{
 			curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -426,6 +396,10 @@ void download_and_process_item(fetch_item* item)
 	else
 	{
 		printf("Not downloading url %s as %s since already available \n", url, outfile);
+		if(is_manifest(url))
+		{
+			strncpy(effectiveUrl, url, URL_MAX_SIZE);
+		}
 	}
 	if (is_manifest(url))
 	{
@@ -446,15 +420,6 @@ void download_and_process_item(fetch_item* item)
 			}
 		}
 		process(outfile, item, effectiveUrl);
-	}
-	else
-	{
-		static int i = 0;
-		if (i >10 )
-		{
-			//exit(0);
-		}
-		i++;
 	}
 }
 
@@ -480,9 +445,9 @@ void download_and_process_list( fetch_item* list )
 #define MAX_ITERATIONS_FOR_LIVE_STREAM 20
 
 
-void print_usage(char *argv[])
+void print_usage(const char *name)
 {
-	printf("Usage : %s <url> [options]\n", argv[0]);
+	printf("Usage : %s <url> [options]\n", name);
 	printf("Option : -l for live\n");
 	printf("Option : -i for interactive selection of profiles to be downloaded\n");
 	printf("Option : -m<val> to set maximum download per profile\n");
@@ -490,7 +455,6 @@ void print_usage(char *argv[])
 
 int main(int argc, char *argv[])
 {
-	int i;
 	int iteration = 1;
 	fetch_item* base_item;
 	char playlist_base_url[BASE_URL_MAX_SIZE];
@@ -526,21 +490,21 @@ int main(int argc, char *argv[])
 		else
 		{
 			printf("Invalid option %s\n", argv[i]);
-			print_usage(argv);
+			print_usage(argv[0]);
 			return -1;
 		}
 	}
 
 	if (!url)
 	{
-		print_usage(argv);
+		print_usage(argv[0]);
 		return -1;
 	}
 
 	printf("url = %s live = %d interactive download = %d maximum download per profile = %d\n", url, is_live, g_interactive_download, g_maximum_downloads_per_profile);
 
 	strcpy(base_url, url);
-	i = strlen(url) - 1;
+	int i = strlen(url) - 1;
 	int last_slash_idx = i;
 
 	for (; i > 1; i--)
@@ -596,7 +560,6 @@ int main(int argc, char *argv[])
 
 		fetch_item* list = item;
 		async_fetch_idx++;
-		list = item;
 		download_and_process_list( list );
 
 		iteration++;
