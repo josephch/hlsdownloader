@@ -31,7 +31,7 @@
 #include <sys/time.h>
 #include <limits.h>
 #include <list>
-
+#include <string>
 
 using namespace std;
 
@@ -59,7 +59,7 @@ struct fetch_item
 
 static int async_fetch_idx = 0;
 
-static int is_live = 0;
+static bool is_live = 0;
 
 static bool main_list_processed = false;
 
@@ -479,6 +479,15 @@ void download_and_process_list( fetch_item* list )
 #define  DELAY_BW_PLAYLIST_UPDATES_MS 4500
 #define MAX_ITERATIONS_FOR_LIVE_STREAM 20
 
+
+void print_usage(char *argv[])
+{
+	printf("Usage : %s <url> [options]\n", argv[0]);
+	printf("Option : -l for live\n");
+	printf("Option : -i for interactive selection of profiles to be downloaded\n");
+	printf("Option : -m<val> to set maximum download per profile\n");
+}
+
 int main(int argc, char *argv[])
 {
 	int i;
@@ -488,44 +497,47 @@ int main(int argc, char *argv[])
 	char base_url[BASE_URL_MAX_SIZE];
 	char base_directory[BASE_URL_MAX_SIZE];
 
-	if (argc < 2)
+	const char* url = nullptr;
+	for (int i = 1; i < argc; i++)
 	{
-		printf("Usage : %s <url> [live]\n", argv[0]);
-		return -1;
-	}
-
-	const char* max_downloads = getenv("MAX_DOWNLOADS_PER_PROFLE");
-	if (max_downloads)
-	{
-		if (1 == sscanf(max_downloads, "%d", &g_maximum_downloads_per_profile))
+		if (0 == strncmp( argv[i], "http", 4))
 		{
-			printf("Maximum downloads per profile set to %d\n", g_maximum_downloads_per_profile);
+			url = argv[i];
 		}
-		else
+		else if (0 == strncmp( argv[i], "-m", 2))
 		{
-			printf("Error parsing max downloads per profile %s\n", max_downloads);
-		}
-	}
-	{
-		//TODO Move these as command line options
-		const char* interactive_download = getenv("ENABLE_INTERACTIVE_DOWNLOADS");
-		if (interactive_download)
-		{
-			int interactive_download_val;
-			if (1 == sscanf(interactive_download, "%d", &interactive_download_val))
+			if (1 == sscanf(argv[i], "-m%d", &g_maximum_downloads_per_profile))
 			{
-				g_interactive_download = (interactive_download_val != 0);
-				printf("interactive download set to %d\n", g_interactive_download);
+				printf("Maximum downloads per profile set to %d\n", g_maximum_downloads_per_profile);
 			}
 			else
 			{
-				printf("Error parsing interactive download %s\n", interactive_download);
+				printf("Error parsing max downloads per profile %s\n", argv[i]);
 			}
+		}
+		else if (0 == strcmp( argv[i], "-i"))
+		{
+			g_interactive_download = true;
+		}
+		else if (0 == strcmp( argv[i], "-l"))
+		{
+			is_live = true;
+		}
+		else
+		{
+			printf("Invalid option %s\n", argv[i]);
+			print_usage(argv);
+			return -1;
 		}
 	}
 
-	const char* url = argv[1];
-	printf("url = %s \n", url);
+	if (!url)
+	{
+		print_usage(argv);
+		return -1;
+	}
+
+	printf("url = %s live = %d interactive download = %d maximum download per profile = %d\n", url, is_live, g_interactive_download, g_maximum_downloads_per_profile);
 
 	strcpy(base_url, url);
 	i = strlen(url) - 1;
@@ -570,12 +582,6 @@ int main(int argc, char *argv[])
 	}
 	printf("base_url = %s base_dir %s\n", playlist_base_url, base_directory);
 	base_item->next = NULL;
-
-	if ( argc > 2 )
-	{
-		is_live = 1;
-		printf("live option\n");
-	}
 	do
 	{
 		long int start_time_ms, end_time_ms, diff_time_ms;
