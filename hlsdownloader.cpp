@@ -268,7 +268,7 @@ void merge_manifest_files(const char* origfile, const char* outfile)
 
 void download_and_process_item(fetch_item* item)
 {
-	CURLcode res;
+	CURLcode res = CURLE_OK;
 	char url[URL_MAX_SIZE];
 	char outfile[OUTPUT_FILE_PATH_SIZE];
 	char origfile[OUTPUT_FILE_PATH_SIZE];
@@ -581,5 +581,6 @@ int main(int argc, char* argv[])
 			usleep(1000 * (DELAY_BW_PLAYLIST_UPDATES_MS - diff_time_ms));
 		}
 	} while (is_live && iteration < MAX_ITERATIONS_FOR_LIVE_STREAM);
+	delete base_item;
 	return 0;
 }
