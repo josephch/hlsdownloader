@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <list>
 #include <string>
+#include <signal.h>
 
 using namespace std;
 
@@ -65,6 +66,12 @@ static bool main_list_processed = false;
 static int g_maximum_downloads_per_profile = INT_MAX;
 
 static bool g_interactive_download = false;
+
+static bool g_exit = false;
+static void signal_handler(int sig)
+{
+	g_exit = true;
+}
 
 static size_t curl_write(void* ptr, size_t size, size_t nmemb, FILE* fp)
 {
@@ -429,7 +436,7 @@ void download_and_process_item(fetch_item* item)
 void download_and_process_list(fetch_item* list)
 {
 	int count = 0;
-	while (NULL != list)
+	while ((NULL != list) && !g_exit)
 	{
 		fetch_item* temp = list;
 		download_and_process_item(list);
@@ -504,6 +511,7 @@ int main(int argc, char* argv[])
 		print_usage(argv[0]);
 		return -1;
 	}
+	signal(SIGINT, signal_handler);
 
 	printf(
 		"url = %s live = %d interactive download = %d maximum download per "
