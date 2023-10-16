@@ -15,16 +15,16 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 #include <assert.h>
 #include <ctype.h>
 #include <curl/curl.h>
 #include <limits.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -32,12 +32,11 @@
 #include <unistd.h>
 #include <list>
 #include <string>
-#include <signal.h>
 
 using namespace std;
 
-#define BASE_URL_MAX_SIZE 1024
-#define PATH_MAX_SIZE 1024
+#define BASE_URL_MAX_SIZE 2048
+#define PATH_MAX_SIZE 2048
 #define URL_MAX_SIZE (BASE_URL_MAX_SIZE + PATH_MAX_SIZE)
 #define OUTPUT_DIR "out"
 #define OUTPUT_FILE_PATH_SIZE (PATH_MAX_SIZE + 4)
@@ -45,7 +44,7 @@ using namespace std;
 #define MANIFEST_EXT_LEN 5
 #define TS_EXT ".ts"
 #define TS_EXT_LEN 3
-//#define MAX_DOWNLOADS_PER_THREAD 50
+// #define MAX_DOWNLOADS_PER_THREAD 50
 
 #define MAX_ASYNC_FETCHES 128
 
@@ -68,10 +67,7 @@ static int g_maximum_downloads_per_profile = INT_MAX;
 static bool g_interactive_download = false;
 
 static bool g_exit = false;
-static void signal_handler(int sig)
-{
-	g_exit = true;
-}
+static void signal_handler(int sig) { g_exit = true; }
 
 static size_t curl_write(void* ptr, size_t size, size_t nmemb, FILE* fp)
 {
