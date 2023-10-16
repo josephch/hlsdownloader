@@ -31,7 +31,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <list>
-#include <string>
 
 using namespace std;
 

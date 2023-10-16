@@ -1,4 +1,9 @@
 build
 .cproject
 .project
-
+/.cache/
+/bin/
+/obj/
+/compile_commands.json
+/hlsdownloader.depend
+/obj/
