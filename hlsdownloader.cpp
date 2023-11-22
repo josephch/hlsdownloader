@@ -471,7 +471,6 @@ int main(int argc, char* argv[])
 	fetch_item* base_item;
 	char playlist_base_url[BASE_URL_MAX_SIZE];
 	char base_url[BASE_URL_MAX_SIZE];
-	char base_directory[BASE_URL_MAX_SIZE];
 
 	const char* url = nullptr;
 	for (int i = 1; i < argc; i++)
@@ -586,6 +585,8 @@ int main(int argc, char* argv[])
 	base_item = new fetch_item();
 	strcpy(base_item->path, &playlist_base_url[i + 1]);
 
+#ifdef USE_BASE_DIRECTORY_PLAYLIST
+	char base_directory[BASE_URL_MAX_SIZE];
 	i = strlen(playlist_base_url) - 1;
 	for (; i > 0; i--)
 	{
@@ -596,6 +597,7 @@ int main(int argc, char* argv[])
 		}
 	}
 	printf("base_url = %s base_dir %s\n", playlist_base_url, base_directory);
+#endif
 	base_item->next = NULL;
 	do
 	{
@@ -606,7 +608,11 @@ int main(int argc, char* argv[])
 		fetch_item* item = new fetch_item();
 		memcpy(item, base_item, sizeof(fetch_item));
 		strcpy(item->base_url, playlist_base_url);
+#ifdef USE_BASE_DIRECTORY_PLAYLIST
 		strcpy(item->base_directory, base_directory);
+#else
+		item->base_directory[0] = '\0';
+#endif
 		printf("%s : Starting iteration %d\n", argv[0], iteration);
 
 		fetch_item* list = item;
