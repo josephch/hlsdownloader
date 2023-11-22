@@ -323,10 +323,10 @@ void download_and_process_item(fetch_item* item)
 			int i;
 			download_file = 1;
 			strcpy(origfile, outfile);
-			char tmpfile[OUTPUT_FILE_PATH_SIZE];
+			char tmpfile[OUTPUT_FILE_PATH_SIZE + 10];
 			for (i = 0; i < 1024; i++)
 			{
-				sprintf(tmpfile, "%s-%04d.m3u8", outfile, i);
+				snprintf(tmpfile, sizeof(tmpfile), "%s-%04d.m3u8", outfile, i);
 				if (-1 == stat(tmpfile, &st))
 				{
 					break;
@@ -336,7 +336,8 @@ void download_and_process_item(fetch_item* item)
 			{
 				exit(0);
 			}
-			strcpy(outfile, tmpfile);
+			strncpy(outfile, tmpfile, (sizeof(outfile) - 1));
+			outfile[sizeof(outfile) - 1] = 0;
 			merge_manifest = 1;
 		}
 		else
