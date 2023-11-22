@@ -57,7 +57,7 @@ struct fetch_item
 
 static int async_fetch_idx = 0;
 
-static bool is_live = 0;
+static bool is_live = false;
 
 static bool main_list_processed = false;
 
@@ -322,25 +322,29 @@ void download_and_process_item(fetch_item* item)
 	{
 		if (is_manifest(url))
 		{
-			int i;
 			download_file = 1;
-			strcpy(origfile, outfile);
-			char tmpfile[OUTPUT_FILE_PATH_SIZE + 10];
-			for (i = 0; i < 1024; i++)
+			if (is_live)
 			{
-				snprintf(tmpfile, sizeof(tmpfile), "%s-%04d.m3u8", outfile, i);
-				if (-1 == stat(tmpfile, &st))
+				int i;
+				strcpy(origfile, outfile);
+				char tmpfile[OUTPUT_FILE_PATH_SIZE + 10];
+				for (i = 0; i < 1024; i++)
 				{
-					break;
+					snprintf(tmpfile, sizeof(tmpfile), "%s-%04d.m3u8", outfile,
+							 i);
+					if (-1 == stat(tmpfile, &st))
+					{
+						break;
+					}
 				}
+				if (1024 == i)
+				{
+					exit(0);
+				}
+				strncpy(outfile, tmpfile, (sizeof(outfile) - 1));
+				outfile[sizeof(outfile) - 1] = 0;
+				merge_manifest = 1;
 			}
-			if (1024 == i)
-			{
-				exit(0);
-			}
-			strncpy(outfile, tmpfile, (sizeof(outfile) - 1));
-			outfile[sizeof(outfile) - 1] = 0;
-			merge_manifest = 1;
 		}
 		else
 		{
