@@ -63,6 +63,8 @@ static bool main_list_processed = false;
 
 static int g_maximum_downloads_per_profile = INT_MAX;
 
+static char g_output_folder[1024];
+
 static bool g_interactive_download = false;
 
 static bool g_exit = false;
@@ -278,7 +280,7 @@ void download_and_process_item(fetch_item* item)
 	struct stat st = {0};
 	int download_file = 1;
 	int merge_manifest = 0;
-	strcpy(outfile, OUTPUT_DIR);
+	strcpy(outfile, g_output_folder);
 	strcat(outfile, "/");
 	char file_path_a[PATH_MAX_SIZE];
 	char* file_path = file_path_a;
@@ -457,6 +459,10 @@ void print_usage(const char* name)
 	printf(
 		"Option : -i for interactive selection of profiles to be downloaded\n");
 	printf("Option : -m<val> to set maximum download per profile\n");
+	printf(
+		"Option : -o<output directory> to set output directory name. Default "
+		"%s\n",
+		OUTPUT_DIR);
 }
 
 int main(int argc, char* argv[])
@@ -494,6 +500,32 @@ int main(int argc, char* argv[])
 		{
 			is_live = true;
 		}
+		else if (0 == strncmp(argv[i], "-o", 2))
+		{
+			const size_t len = strlen(argv[i]);
+			if (len > 2 && len < sizeof(g_output_folder))
+			{
+				if (1 == sscanf(argv[i], "-o%s", g_output_folder))
+				{
+					printf("Output directory set to %s\n", g_output_folder);
+				}
+			}
+			if (0 == g_output_folder[0])
+			{
+				const size_t next_arg_idx = i + 1;
+				if ((size_t)argc > next_arg_idx)
+				{
+					const char* next_arg = argv[next_arg_idx];
+					if (next_arg[0] != '-')
+					{
+						strncpy(g_output_folder, next_arg,
+								sizeof(g_output_folder) - 1);
+						g_output_folder[sizeof(g_output_folder) - 1] = '\0';
+						i++;
+					}
+				}
+			}
+		}
 		else
 		{
 			printf("Invalid option %s\n", argv[i]);
@@ -507,12 +539,20 @@ int main(int argc, char* argv[])
 		print_usage(argv[0]);
 		return -1;
 	}
+
+	if (0 == g_output_folder[0])
+	{
+		strncpy(g_output_folder, OUTPUT_DIR, sizeof(g_output_folder) - 1);
+		g_output_folder[sizeof(g_output_folder) - 1] = '\0';
+	}
+
 	signal(SIGINT, signal_handler);
 
 	printf(
 		"url = %s live = %d interactive download = %d maximum download per "
-		"profile = %d\n",
-		url, is_live, g_interactive_download, g_maximum_downloads_per_profile);
+		"profile = %d, output dir : %s \n",
+		url, is_live, g_interactive_download, g_maximum_downloads_per_profile,
+		g_output_folder);
 
 	strcpy(base_url, url);
 	int i = strlen(url) - 1;
