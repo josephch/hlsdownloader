@@ -59,6 +59,8 @@ static int async_fetch_idx = 0;
 
 static bool is_live = false;
 
+static bool g_fetch_playlists_only = false;
+
 static bool main_list_processed = false;
 
 static int g_maximum_downloads_per_profile = INT_MAX;
@@ -318,7 +320,11 @@ void download_and_process_item(fetch_item* item)
 	strncat(outfile, file_path, 255);
 	strcat(url, item->path);
 
-	if (0 == stat(outfile, &st))
+	if (g_fetch_playlists_only && !is_manifest(url))
+	{
+		download_file = 0;
+	}
+	else if (0 == stat(outfile, &st))
 	{
 		if (is_manifest(url))
 		{
@@ -406,8 +412,11 @@ void download_and_process_item(fetch_item* item)
 	}
 	else
 	{
-		printf("Not downloading url %s as %s since already available \n", url,
-			   outfile);
+		if (!g_fetch_playlists_only)
+		{
+			printf("Not downloading url %s as %s since already available \n",
+				   url, outfile);
+		}
 		if (is_manifest(url))
 		{
 			strncpy(effectiveUrl, url, URL_MAX_SIZE);
@@ -467,6 +476,7 @@ void print_usage(const char* name)
 		"Option : -o<output directory> to set output directory name. Default "
 		"%s\n",
 		OUTPUT_DIR);
+	printf("Option : -s skip segments (only retrieve the manifests)\n");
 }
 
 int main(int argc, char* argv[])
@@ -529,6 +539,10 @@ int main(int argc, char* argv[])
 				}
 			}
 		}
+		else if (0 == strcmp(argv[i], "-s"))
+		{
+			g_fetch_playlists_only = true;
+		}
 		else
 		{
 			printf("Invalid option %s\n", argv[i]);
@@ -553,9 +567,9 @@ int main(int argc, char* argv[])
 
 	printf(
 		"url = %s live = %d interactive download = %d maximum download per "
-		"profile = %d, output dir : %s \n",
+		"profile = %d, output dir : %s fetch_playlists_only =%d\n",
 		url, is_live, g_interactive_download, g_maximum_downloads_per_profile,
-		g_output_folder);
+		g_output_folder, g_fetch_playlists_only);
 
 	strcpy(base_url, url);
 	int i = strlen(url) - 1;
@@ -630,7 +644,7 @@ int main(int argc, char* argv[])
 		printf(
 			"%s : Completed iteration %d is_live =  %d time taken = %ld ms\n",
 			argv[0], iteration, is_live, diff_time_ms);
-		if (diff_time_ms < DELAY_BW_PLAYLIST_UPDATES_MS)
+		if (is_live && (diff_time_ms < DELAY_BW_PLAYLIST_UPDATES_MS))
 		{
 			usleep(1000 * (DELAY_BW_PLAYLIST_UPDATES_MS - diff_time_ms));
 		}
