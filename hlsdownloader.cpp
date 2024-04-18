@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <list>
+#include <string>
 
 using namespace std;
 
@@ -68,6 +69,7 @@ static int g_maximum_downloads_per_profile = INT_MAX;
 static char g_output_folder[1024];
 
 static bool g_interactive_download = false;
+static int g_video_track_to_download_idx = -1;
 
 static bool g_exit = false;
 static void signal_handler(int sig) { g_exit = true; }
@@ -111,11 +113,21 @@ void process(const char* file, fetch_item* item, const char* base_url)
 		main_manifest = 1;
 		main_list_processed = true;
 	}
+	int vid_idx = 0;
 	while ((read_len = getline(&line, &len, fp)) != -1)
 	{
 		if (main_manifest)
 		{
 			printf("Main manifest: line:%s\n", line);
+			if ((g_video_track_to_download_idx != -1) && ('#' != line[0] && (!isspace(line[0]))))
+			{
+				vid_idx++;
+				if (vid_idx != g_video_track_to_download_idx)
+				{
+					printf("Skip %s\n", line);
+					continue;
+				}
+			}
 		}
 		else
 		{
@@ -462,8 +474,8 @@ void download_and_process_list(fetch_item* list)
 	}
 }
 
-#define DELAY_BW_PLAYLIST_UPDATES_MS 4500
-#define MAX_ITERATIONS_FOR_LIVE_STREAM 20
+#define DELAY_BW_PLAYLIST_UPDATES_MS 20000
+#define MAX_ITERATIONS_FOR_LIVE_STREAM 4
 
 void print_usage(const char* name)
 {
@@ -477,6 +489,7 @@ void print_usage(const char* name)
 		"%s\n",
 		OUTPUT_DIR);
 	printf("Option : -s skip segments (only retrieve the manifests)\n");
+	printf("Option : -v<track no> to download only a specific video track\n");
 }
 
 int main(int argc, char* argv[])
@@ -536,6 +549,17 @@ int main(int argc, char* argv[])
 						g_output_folder[sizeof(g_output_folder) - 1] = '\0';
 						i++;
 					}
+				}
+			}
+		}
+		else if (0 == strncmp(argv[i], "-v", 2))
+		{
+			const size_t len = strlen(argv[i]);
+			if (len > 2)
+			{
+				if (1 == sscanf(argv[i], "-v%d", &g_video_track_to_download_idx))
+				{
+					printf("Video track to download set to %d\n", g_video_track_to_download_idx);
 				}
 			}
 		}
@@ -648,7 +672,7 @@ int main(int argc, char* argv[])
 		{
 			usleep(1000 * (DELAY_BW_PLAYLIST_UPDATES_MS - diff_time_ms));
 		}
-	} while (is_live && iteration < MAX_ITERATIONS_FOR_LIVE_STREAM);
+	} while (is_live && (iteration < MAX_ITERATIONS_FOR_LIVE_STREAM) && !g_exit );
 	delete base_item;
 	return 0;
 }
